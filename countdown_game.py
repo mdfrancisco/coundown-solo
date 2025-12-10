@@ -17,43 +17,71 @@ CONSONANT_STACK = [
 ]
 
 def load_dictionary(file):
-    """Load dictionary words using a set."""
+    '''
+    Load dictionary words using a set.
+    
+    :param file: English words list text file
+    '''
     with open(file) as f:
         return set(f.read().split())
 
-def get_user_input():
-    """Let the user choose 9 letters (vowel or consonant) and draw randomly."""
+
+def draw_letter(stack):
+    '''
+    Removes letter from the stack once picked.
     
-    letters = []
-    vowels_count = 0
-    consonants_count = 0
+    :param stack: Vowel or Consonant stack
+    '''
+    return stack.pop()
 
-    print("\nChoose 9 letters. Type 'v' for vowel, 'c' for consonant.")
+def get_user_input(vowel_stack, consonant_stack):
 
-    while len(letters) < 9:
-        choice = input(f"Pick letter {len(letters)+1}/9 (v/c): ").strip().lower()
+    while True:  #repeat until valid mix of letters
 
-        if choice not in ("v", "c"):
-            print("Invalid choice. Type 'v' or 'c'.")
-            continue
+        letters = []
+        vowels_count = 0
+        consonants_count = 0
 
-        stack = VOWEL_STACK if choice == "v" else CONSONANT_STACK
-        letter = random.choice(stack)
-        letters.append(letter)
+        print("\nChoose 9 letters. Type 'v' for vowel, 'c' for consonant.\n")
+        print(f"Vowels left: {len(vowel_stack)}, Consonants left: {len(consonant_stack)}")
 
-        if choice == "v":
-            vowels_count += 1
-        else:
-            consonants_count += 1
+        for i in range(1, 10):
+            #Prevent impossible selections:
+            if len(vowel_stack) == 0:
+                print("No vowels left —> forcing consonant.")
+                choice = "c"
+            elif len(consonant_stack) == 0:
+                print("No consonants left —> forcing vowel.")
+                choice = "v"
+            else:
+                choice = input(f"Pick letter {i}/9 (v/c): ").strip().lower()
 
-        print("\nLetters drawn:")
-        print(" ".join(letter.upper() for letter in letters))
+            if choice not in ("v", "c"):
+                print("Invalid input. Please type 'v' or 'c'.")
+                continue
 
-    if vowels_count < 3 or consonants_count < 4:
-        print("You must choose at least 3 vowels and 4 consonants. Starting over.")
-        return get_user_input()
+            if choice == "v":
+                letter = draw_letter(vowel_stack)
+                vowels_count += 1
+            else:
+                letter = draw_letter(consonant_stack)
+                consonants_count += 1
 
-    return letters
+            letters.append(letter)
+
+            print("Current letters:", " ".join(letters))
+
+        #validate ratio of v's and c's
+        if vowels_count >= 3 and consonants_count >= 4:
+            return letters
+        
+        print("\nInvalid selection. You must choose at least 3 vowels and 4 consonants. Starting over.")
+        print("Restarting selection...\n")
+
+        #put letters back into top stacks (reset)
+        vowel_stack[:0] = [l for l in letters if l in "AEIOU"]
+        consonant_stack[:0] = [l for l in letters if l not in "AEIOU"]
+
 
 def find_matching_words(letters, dictionary):
     """Return all dictionary words that can be formed from the letters."""
@@ -68,22 +96,24 @@ def find_matching_words(letters, dictionary):
 
     return matching_words
 
-
-def display_results(letters, matching_words):
-    """Show longest words and return round score."""
-
+def score_words(matching_words):
     if not matching_words:
-        print("No valid words can be formed from these letters.")
-        return 0
+        return 0, []
 
     max_length = max(len(word) for word in matching_words)
-    longest_words = [word for word in matching_words if len(word) == max_length]
+    longest_words = [w for w in matching_words if len(w) == max_length]
+    score = 18 if max_length == 9 else max_length
+    return score, longest_words
 
-    print(f"Longest words ({max_length} letters):")
-    print(", ".join(longest_words))
-    print(f"Round Score: {max_length}")
-
-    return 18 if max_length == 9 else max_length
+def display_round_results(letters, longest_words, score):
+    print("Letters drawn:", " ".join(letters))
+    if longest_words:
+        print(f"Longest words ({len(longest_words[0])} letters):")
+        print(", ".join(longest_words))
+        print(f"Round Score: {score}")
+    else:
+        print("No valid words can be formed from these letters.")
+        print(f"Round Score: {score}")
 
 
 def start_game():
@@ -92,19 +122,25 @@ def start_game():
     dictionary = load_dictionary("words_alpha.txt")
     total_score = 0
 
+    vowel_stack = VOWEL_STACK[:]
+    consonant_stack = CONSONANT_STACK[:]
+    #shuffle stack once to mimic TV Game strategic shuffle
+    random.shuffle(vowel_stack)
+    random.shuffle(consonant_stack)
+
     for round_num in range(1, ROUNDS + 1):
         print(f"\n--- Round {round_num} ---")
         
-        letters = get_user_input()
-        letters_str = "".join(letter.lower() for letter in letters)
+        letters = get_user_input(vowel_stack, consonant_stack)
+        letters_str = "".join(letter.lower() for letter in letters) 
         matching_words = find_matching_words(letters_str, dictionary)
-        round_score = display_results(letters_str, matching_words)
+        score, longest_words = score_words(matching_words)
+        display_round_results(letters, longest_words, score)
 
-        total_score += round_score
+        total_score += score
 
     print("\n------ Game Over ------")
-    print(f"You completed {ROUNDS} rounds with a total score of {total_score}.\n")
-
+    print(f"Total Score: {total_score}\n")
 
 if __name__ == "__main__":
     start_game()
